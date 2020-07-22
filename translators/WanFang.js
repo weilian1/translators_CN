@@ -9,7 +9,7 @@
 	"inRepository": true,
 	"translatorType": 12,
 	"browserSupport": "gcs",
-	"lastUpdated": "2020-07-21 09:22:37"
+	"lastUpdated": "2020-07-22 08:29:33"
 }
 
 /*
@@ -41,127 +41,141 @@ function setCookie(doc, ids) {
 		exportStr = exportStr + ids[i].dbname + '_' + ids[i].filename + '%3B';
 	}
 	doc.cookie = exportStr.slice(0, exportStr.length -3);
+	doc.cookie = 'SEARCHHISTORY_0=; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
 }
 
-function parseCreators(authors) {
-	var authorNames = authors.querySelectorAll('a');
-	var creators = [];
-	for (let i=0; i<authorNames.length; i++) {
-		var author = authorNames[i].textContent.trim();
-		var creator = {creatorType: "author"};
-		var lastSpace = author.lastIndexOf(' ');
-		if (author.search(/[A-Za-z]/) !== -1 && lastSpace !== -1) {
-			// western name. split on last space
-			creator['firstName'] = author.substr(0,lastSpace);
-			creator['lastName'] = author.substr(lastSpace + 1);
-		} else {
-			// Chinese name. first character is last name, the rest are first name
-			creator['firstName'] = author.substr(1);
-			creator['lastName'] = author.charAt(0);
-		}
-		creators.push(creator);
-	}
-	return creators;
+function delCookie(doc, name) {
+	doc.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC";
 }
 
-function parseHTML(doc, url) {
-	var detail = ZU.xpath(doc, "//div[@class='detailList']");
-	var title = doc.title.trim();
-	var detailText = detail[0].innerText;
-	var lines = detailText.split("\n");
-	var keyword = ZU.xpath(detail, ".//div[contains(@class, 'keyword')]");
-	var authors = ZU.xpath(detail, ".//div[contains(@class, 'author')]");
-	Z.debug(lines);
-	var id = getIDFromURL(url);
-	var newItem = new Zotero.Item(id.dbname);
-	newItem.title = title.trim();
-	newItem.url = url;
-	if (lines[0].slice(0,2) == "摘要") {
-		var clickMore = ZU.xpath(detail, ".//div[@class='summary']/span[@class='getMore']");
-		if (clickMore.length > 0) {
-			clickMore[0].click();
-		}
-		newItem.abstractNote = ZU.xpath(doc, "//div[@class='summary']")[0]
-			.innerText.replace("查看全部>>", "").replace("收起∧","").trim();
+function getRefworksByID(ids, next) {
+	var searchType = {
+		journalArticle: 'periodical',
+		patent: 'patent',
+		conferencePaper: 'conference',
+		thesis: 'thesis'
 	}
-	if (lines.indexOf("doi：") > 0) {
-		newItem.DOI = lines[lines.indexOf("doi：") + 1];
-	}
-	if (keyword.length > 0) {
-		var word = keyword[0].querySelectorAll('a');
-		for (let i=0; i<word.length;i++) {
-			newItem.tags.push(word[i].textContent.trim());
-		}
-	}
-	if (authors.length > 0) {
-		newItem.creators = parseCreators(authors[0]);
-	}
-	if (lines.indexOf("Journal：") > 0) {
-		newItem.journalAbbreviation = lines[lines.indexOf("Journal：") + 1]
-	}
-	if (lines.indexOf("刊名：") > 0) {
-		newItem.publicationTitle = lines[lines.indexOf("刊名：") + 1];
-	}
-	if (lines.indexOf("年，卷(期)：") > 0) {
-		var tmp = lines[lines.indexOf("年，卷(期)：") + 1];
-		tmp = tmp.split(/[,\(\)]/);
-		newItem.date = tmp[0];
-		newItem.volume = tmp[1];
-		newItem.issue = tmp[2];
-	}
-	if (lines.indexOf("页码：") > 0) {
-		newItem.pages = lines[lines.indexOf("页码：") + 1];
-	}
-	if (lines.indexOf("所属期刊栏目：") > 0) {
-		newItem.series = lines[lines.indexOf("所属期刊栏目：") + 1];
-	}
-	if (lines.indexOf("学位授予单位：") > 0) {
-		newItem.university = lines[lines.indexOf("学位授予单位：") + 1];
-	}
-	if (lines.indexOf("会议名称：") > 0) {
-		newItem.conferenceName = lines[lines.indexOf("会议名称：") + 1];
-	}
-	if (lines.indexOf("会议地点：") > 0) {
-		newItem.place = lines[lines.indexOf("会议地点：") + 1];
-	}
-	if (lines.indexOf("会议时间：") > 0) {
-		newItem.date = lines[lines.indexOf("会议时间：") + 1];
-	}
-	if (lines.indexOf("国别省市代码：") > 0) {
-		newItem.country = lines[lines.indexOf("国别省市代码：") + 1];
-	}
-	if (lines.indexOf("申请/专利号：") > 0) {
-		newItem.patentNumber = lines[lines.indexOf("申请/专利号：") + 1];
-	}
-	if (lines.indexOf("主权项：") > 0) {
-		newItem.rights = lines[lines.indexOf("主权项：") + 1];
-	}
-	if (lines.indexOf("法律状态：") > 0) {
-		newItem.legalStatus = lines[lines.indexOf("法律状态：") + 1];
-	}
-	if (lines.indexOf("发明/设计人：") > 0) {
-		inventorNodes = ZU.xpath(detail, ".//div[contains(@class, 'applicant')][2]//a");
-		Z.debug(inventorNodes.length);
-		for (let i=0; i<inventorNodes.length; i++) {
-			newItem.creators.push({
-				"firstName": "",
-				"lastName": inventorNodes[i].textContent.trim(),
-				"creatorType": "inventor",
-			});
-		}
-	}
-	// attachment
-	var readOnline = ZU.xpath(doc, "//div[@class='detailIcon']//a[@title='在线阅读']");
-	if (readOnline.length > 0) {
-		Z.debug(readOnline[0].href);
-		newItem.attachments.push({
-			title: "Full Text PDF",
-			mimeType: "application/pdf",
-			url: readOnline[0].href	
+	var r = Math.random();
+	//var isHtml5Value = "thesis_Y3578315;conference_9534067;periodical_jsjyjyfz201910006;patent_CN201880013080.0";
+	var headers = {
+    "Host": "www.wanfangdata.com.cn",
+"Accept": "application/json, text/javascript, */*; q=0.01",
+"Accept-Language": "zh-CN,en-US;q=0.7,en;q=0.3",
+"Accept-Encoding": "gzip, deflate",
+"Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+"X-Requested-With": "XMLHttpRequest",
+"Content-Length": "47",
+"Origin": "http://www.wanfangdata.com.cn",
+"Connection": "keep-alive",
+"Referer": "http://www.wanfangdata.com.cn/export/exportHtml.do",
+"Pragma": "no-cache",
+"Cache-Control": "no-cache"
+};
+	var postData = "exportType=refWorks&isHtml5=false&isHtml5Value=";
+	Z.debug(postData);
+	Z.debug(headers);
+	
+	var postUrl = "http://www.wanfangdata.com.cn/export/getExportJson.do?r=0.05079695566632725";
+	var d = {
+		exportType:'refWorks',
+		isHtml5:false,
+		isHtml5Value:"",
+	};
+	
+	ZU.doPost(postUrl, postData, 
+		function(text) {
+			Z.debug(text);
+			text = JSON.parse(text)['exportHtml'];
+			text = text.replace(/<br>/g, '\n');
+			text = text.replace(/^RT\s+Dissertation\/Thesis/gmi, 'RT Dissertation');
+			text = text.replace(/^RT\s+Conference Proceeding/gmi, "RT Conference Proceedings");
+			// Z.debug(text);
+			next(text);
+		},
+		headers
+	);
+}
+
+function scrape(ids, doc, url, itemInfo) {
+	setCookie(doc, ids);
+	Z.debug(doc.cookie);
+	getRefworksByID(ids, function(text, ids) {
+		var translator = Z.loadTranslator('import');
+		translator.setTranslator('1a3506da-a303-4b0a-a1cd-f216e6138d86'); //Refworks
+		translator.setString(text);
+		translator.setHandler('itemDone', function(obj, newItem) {
+			// split names
+			var authors = "";
+			for (let i = 0; i < newItem.creators.length; i++) {
+				authors = authors + newItem.creators[i]['lastName'] + ';';
+			}
+			authors = authors.slice(0, authors.length-1);
+			// remove [names in PINYIN]
+			authors = authors.replace(/[\s;]\[.*\]/g, '');
+			if (newItem.itemType == "conferencePaper"){
+				authors = authors.split(/[\s;]/);
+			} else {
+				authors = authors.split(';');
+			}
+			newItem.creators = [];
+			for (let i = 0, n = authors.length; i < n; i++) {
+				var author = ZU.trimInternal(authors[i]);
+				var creator = {creatorType: "author"};
+				var lastSpace = author.lastIndexOf(' ');
+				if (author.search(/[A-Za-z]/) !== -1 && lastSpace !== -1) {
+					// western name. split on last space
+					creator['firstName'] = author.substr(0,lastSpace);
+					creator['lastName'] = author.substr(lastSpace + 1);
+				} else {
+					// Chinese name. first character is last name, the rest are first name
+					creator['firstName'] = author.substr(1);
+					creator['lastName'] = author.charAt(0);
+				}
+				newItem.creators.push(creator);
+			}
+			// split tags 
+			var tags = newItem.tags;
+			newItem.tags = [];
+			for (var tag of tags){
+				var tagSplit = tag.split(/\s+/);
+				newItem.tags = newItem.tags.concat(tagSplit);
+			}
+			// remove unnecessary notes
+			if (newItem.notes){
+				newItem.notes = [];
+			}
+				
+			if (newItem.abstractNote) {
+				newItem.abstractNote = newItem.abstractNote.replace(/\s*[\r\n]\s*/g, '\n');
+			}
+			
+			// clean up tags. Remove numbers from end
+			for (var j = 0, l = newItem.tags.length; j < l; j++) {
+				newItem.tags[j] = newItem.tags[j].replace(/:\d+$/, '');
+			}
+			
+			newItem.title = ZU.trimInternal(newItem.title);
+			if (itemInfo) {
+				var info = itemInfo[newItem.title];
+				if (!info) {
+					Z.debug('No item info for "' + newItem.title + '"');
+				} else {
+					newItem.url = info.url;
+				}
+			} else {
+				newItem.url = url;
+			}
+			newItem.attachments = [{
+				url: newItem.url,
+				title: newItem.title,
+				mimeType: "text/html",
+				snapshot: true
+			}];
+			newItem.complete();
 		});
-	}
-	Z.debug(newItem);
-	newItem.complete();
+		
+		translator.translate();
+	});
 }
 
 
@@ -201,8 +215,12 @@ function detectWeb(doc, url) {
 	var id = getIDFromURL(url);
 	var items = url.match(/\/(search)\//i);
 	Z.debug(id);
-	setCookie(doc, [id]);
-	Z.debug(doc.cookie);
+	//setCookie(doc, [id]);
+	//Z.debug(doc.cookie);
+	//delCookie(doc, "ExportItem");
+	//Z.debug(doc.cookie);
+	//delCookie(doc, "SEARCHHISTORY_0");
+	//Z.debug(doc.cookie);
 	if (id) {
 		return getTypeFromDBName(id.dbname);
 	} else if (items) {
@@ -254,7 +272,8 @@ function doWeb(doc, url) {
 			//ZU.processDocuments(urls, parseHTML(doc, url));
 		});
 	} else {
-		parseHTML(doc, url);
+		var id = getIDFromURL(url);
+		scrape([id], doc, url);
 	}
 }/** BEGIN TEST CASES **/
 var testCases = [
