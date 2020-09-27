@@ -34,6 +34,93 @@
 
 	***** END LICENSE BLOCK *****
 */
+
+var typeFieldMap = {
+    "periodical" : {
+        "Title":"title",
+        "Abstract":"abstractNote",
+        "PeriodicalTitle":"publicationTitle",
+        "Volum":"volume",
+        "Issue":"issue",
+        "Page":"pages",
+        "PublishDate":"date",
+        "journalAbbreviation": "",
+        "DOI": "DOI",
+        "ISSN": "ISSN",
+        "Keywords": "tags"
+    },
+    "thesis": {
+        "Title":"title",
+        "Abstract": "abstractNote",
+        "Degree":"thesisType",
+        "OrganizationNorm":"university",
+        "PublishDate": "date",
+        "MachinedKeywords": "tags",
+        "creators": [
+            {
+                "Creator": "author",
+            },
+            {
+                "Tutor": "contributor",
+            }
+        ],
+    },
+    "conference": {
+        "Title":"title",
+        "Abstract":"abstractNote",
+        "MetadataOnlineDate": "date",
+        "MeetingTitle": "proceedingsTitle",
+        "MeetingTitle": "conferenceName",
+        "MeetingArea": "place",
+        "Volum":"volume",
+        "Page": "pages",
+        "MeetingCorpus": "series",
+        "DOI": "DOI",
+        "creators": [
+            {
+                "Creator": "author",
+            },
+        ],
+    },
+    "patent": {
+        "Title":"title",
+        "Abstract":"abstractNote",
+        "ApplicantArea": "place",
+        "CountryOrganization": "country",
+        "assignee": "",
+        "issuingAuthority": "",
+        "patentNumber": "",
+        "filingDate": "",
+        "pages": "",
+        "applicationNumber": "",
+        "priorityNumbers": "",
+        "issueDate": "",
+        "references": "",
+        "LegalStatus": "legalStatus",
+        "rights": "",
+        "creators": [
+            {
+                "firstName": "",
+                "lastName": "",
+                "creatorType": "inventor",
+                "fieldMode": true
+            },
+            {
+                "firstName": "",
+                "lastName": "",
+                "creatorType": "contributor",
+                "fieldMode": true
+            },
+            {
+                "firstName": "",
+                "lastName": "",
+                "creatorType": "attorneyAgent",
+                "fieldMode": true
+            }
+        ],
+    }
+}
+
 function setCookie(doc, ids) {
 	// ExportItem=periodical_hgxb2019z1002%3Bperiodical_yznkxjs202006014%3Bperiodical_zgcsjs202006022
 	var exportStr = "ExportItem=";
